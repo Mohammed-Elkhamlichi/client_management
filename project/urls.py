@@ -19,7 +19,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('clients/', include('clients.urls', namespace='clients')),
     path('employees/', include('employees.urls', namespace='employees')),
 ]
 
