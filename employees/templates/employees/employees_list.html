@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block content %}
+    {% for message in messages%}
+        {{message}}
+    {% endfor %}
+    <div id="alert-box"></div>
+    <form action="" id="form">
+        {% csrf_token %}
+        <div class="form-group">
+            {{ form.first_name|as_crispy_field}}
+        </div>
+        <div class="form-group">
+            {{ form.last_name|as_crispy_field}}
+        </div>
+        <center>
+            <style>
+                .hide{
+                    display:none;
+                }
+            </style>
+            <input type="button" id="form_add_employee" value="Add Employee" class="btn btn-success mt-3 mb-3"> 
+            <input type="button" id="form_update_employee" value="Update Employee" class="btn btn-info  hide mt-3 mb-3"> 
+
+        </center>
+    </form>
+    <table class="table table-striped">
+        <thead class="thead-dark">
+            <tr>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Remove</th>
+                <th>Update</th>
+            </tr>
+        </thead>
+        <tbody id="tbody-list">
+            <style>
+                .hide{
+                    display:none;
+                }
+            </style>
+            {% for employee in employees %}
+            <tr>
+                <td>{{ employee.first_name }}</td>
+                <td>{{ employee.last_name }}</td>
+                <td><a href="#" class="btn btn-danger delete"><span class="hide">{{employee.id}}</span> Remove</a></td>
+                <td><a href="#" class="btn btn-info update"><span class="hide">{{employee.id}}</span> Update</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock content %}
+
+{% block js %}
+<script>
+    const form = document.querySelector('#form');
+    const alertBox = document.querySelector('#alert-box');
+    const addEmployeeBtn = document.querySelector('#form_add_employee');
+    const UpdateEmployeeBtn = document.querySelector('#form_update_employee')
+    const getFirstName = document.querySelector('#id_first_name');
+    const getLastName = document.querySelector('#id_last_name');
+    const getCsrf = document.getElementsByName('csrfmiddlewaretoken');
+    const tbList = document.querySelector('#tbody-list');
+
+    const listUpdateBtns = document.querySelectorAll('.update');
+
+    // Alert message format.
+    const msg = (action, content, className) => {
+        alertBox.innerHTML = 
+        `
+        <div class="alert alert-${className} alert-dismissible fade show" role="alert"><b>${action} </b> ${content}</div>
+        `
+    };
+    // Update Employee information:
+    for (let i=0; i<listUpdateBtns.length; i++) {
+        listUpdateBtns[i].addEventListener('click', (e) => {
+            e.preventDefault();
+
+            // hide the form add employees.
+            addEmployeeBtn.classList.add('hide');
+            
+            // display the form update button.
+            UpdateEmployeeBtn.classList.remove('hide');
+
+            // set the id value.
+            id = listUpdateBtns[i].firstChild.innerHTML;
+
+            // set the data inside FormData function.
+            const fd1 = new FormData();
+            fd1.append('id', id);
+            fd1.append('csrfmiddlewaretoken', getCsrf[0].value);
+
+            // send and recieve the data between the server and the browser using AJAX.
+            $.ajax({
+                method: 'POST',
+                url: 'http://127.0.0.1:8000/employees/info/',
+                data: fd1,
+                enctype: 'multipart/form-data',
+                success: function(success) {
+
+                    // add the values to the inputs when the table update button wqs clicked.
+                    getFirstName.value = success['first_name'];
+                    getLastName.value = success['last_name'];
+
+                    // if the form update button clicked.
+                    UpdateEmployeeBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+
+                         // set the data inside FormData function.
+                        const fd2 = new FormData();
+                        fd2.append('id', id);
+                        fd2.append('first_name', getFirstName.value);
+                        fd2.append('last_name', getLastName.value);
+                        fd2.append('csrfmiddlewaretoken', getCsrf[0].value);
+                        const newListLastName = listUpdateBtns[i].parentElement.previousElementSibling.previousElementSibling;
+                        const newListFirstName = listUpdateBtns[i].parentElement.previousElementSibling.previousElementSibling.previousElementSibling;
+
+                        // send and recieve the data between the server and the browser using AJAX.
+                        $.ajax({
+                            method: 'POST',
+                            url: 'http://127.0.0.1:8000/employees/update/',
+                            data: fd2,
+                            enctype: 'multipart/form-data',
+                            success: function(success) {
+                                UpdateEmployeeBtn.classList.add('hide');
+                                addEmployeeBtn.classList.remove('hide');
+                                msg('congratulations', 'Employee info has been update it', 'success');
+                                newListFirstName.innerHTML = getFirstName.value;
+                                newListLastName.innerHTML = getLastName.value;
+
+                                setTimeout((e) => {
+                                    alertBox.innerHTML = "";
+                                }, 2000)
+                                // setTimeout((e) => {
+                                //     getFirstName.value = "";
+                                //     getLastName.value = "";
+                                // }, 0)
+                                
+                            },
+                            error: function(error) {
+                                console.log(error)
+                            },
+                            cache: false,
+                            contentType: false,
+                            processData: false,
+                        })
+
+                    })
+                },
+                error: function(error) {
+                    console.log(error)
+                },
+                cache: false,
+                contentType: false,
+                processData: false,
+            })
+        })
+    }
+
+    // Remove Employee From the list:
+    let listRemoveBtns = document.querySelectorAll('.delete');
+    for (let i=0; i<listRemoveBtns.length; i++) {
+        listRemoveBtns[i].addEventListener('click', (e) => {
+            e.preventDefault();
+            setTimeout((e) => {
+                alertBox.innerHTML = "";
+            }, 3000)
+            if (confirm(`Are you sure you want to delete this Employee`)) {
+                id = listRemoveBtns[i].firstChild.innerHTML
+                const fd = new FormData();
+                fd.append('id', id);
+                fd.append('csrfmiddlewaretoken', getCsrf[0].value)
+                $.ajax({
+                    method: 'POST',
+                    url: 'http://127.0.0.1:8000/employees/delete/',
+                    data: fd,
+                    enctype: 'multipart/form-data',
+                    success: function(success) {
+                        // console.log(success);
+                        if (success['delete_success']) {
+                            listRemoveBtns[i].parentElement.parentElement.remove();
+                            msg('congratulations', 'Employee has been deleted from the list', 'success')
+                            
+                        }else if (success['delete_employee_error']) {
+                            msg('Oops!', 'Employee not deleted, Please try again', 'danger')
+                        }
+                    },
+                    error: function(error) {
+                        console.log(error);
+                    },
+                    cache: false,
+                    contentType: false,
+                    processData: false,
+                })
+            }
+        })
+    };
+
+
+
+
+    // Add A new Employee To the List:
+    addEmployeeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const fd = new FormData();
+        fd.append('first_name', getFirstName.value);
+        fd.append('last_name', getLastName.value);
+        fd.append('csrfmiddlewaretoken', getCsrf[0].value);
+        if (getFirstName.value && getLastName.value) {
+            $.ajax({
+                method: 'POST',
+                url: 'http://127.0.0.1:8000/employees/list/',
+                data: fd,
+                enctype: 'multipart/form-data',
+                success: function(response) {
+                    if (response['success']) {
+                        msg('congratulations ^_^ ', response['success'], 'info');
+                        setTimeout((e) => {
+                            getFirstName.value = "";
+                            getLastName.value = "";
+                        }, 0)
+                        setTimeout((e) => {
+                            alertBox.innerHTML = "";
+                        }, 3000)
+                        const tr = document.createElement('tr');
+                        tr.innerHTML =
+                        `
+                        <tr>
+                            <td>${getFirstName.value}</td>
+                            <td>${getLastName.value}</td>
+                            <td><a href="#" class="btn btn-danger delete"><span class="hide">{{employee.id}}</span> Remove</a></td>
+                            <td><a href="#" class="btn btn-info update"><span class="hide">{{employee.id}}</span> Update</a></td>
+                        </tr>
+                        `;
+                        tbList.appendChild(tr);
+                    }else if (response['error']) {
+                        msg('Oops!', response['error'], 'danger');
+                    }
+                },
+                error: function(error) {
+                    console.log('error')
+                },
+                cache: false,
+                contentType: false,
+                processData: false,
+            })
+        }else {
+            msg('Oops!',' some Field is Empty','danger')
+        }
+
+    });
+</script>
+{% endblock js %}
